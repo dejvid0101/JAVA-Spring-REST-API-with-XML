@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<currentWeather>
+    <temperature>12.9</temperature>
+    <windspeed>8.4</windspeed>
+    <winddirection>245.0</winddirection>
+    <weathercode>3</weathercode>
+    <time>2023-03-24T22:00</time>
+</currentWeather>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="weatherCollection">
+        <xs:complexType>
+        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+
+    <xs:element name="weather">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="temperature" >
+                    <xs:simpleType>
+                        <xs:restriction base="xs:double">
+                            <xs:maxExclusive value="50.0"/>
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:element>
+                <xs:element name="windspeed" type="xs:double" />
+                <xs:element name="winddirection" type="xs:double" />
+                <xs:element name="weathercode" type="xs:double" />
+                <xs:element name="time" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+        </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

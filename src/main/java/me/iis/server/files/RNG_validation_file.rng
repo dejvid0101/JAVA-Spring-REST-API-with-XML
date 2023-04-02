@@ -1,0 +1,21 @@
+<element datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes" xmlns="http://relaxng.org/ns/structure/1.0" name="currentWeather">
+        <oneOrMore>
+    <element name="temperature">
+        <data type="double">
+            <param name="maxInclusive">50</param>
+        </data>
+    </element>
+    <element name="windspeed">
+        <data type="double"/>
+    </element>
+    <element name="winddirection">
+        <data type="double"/>
+    </element>
+    <element name="weathercode">
+        <data type="int"/>
+    </element>
+    <element name="time">
+        <data type="string"/>
+    </element>
+</oneOrMore>
+</element>
