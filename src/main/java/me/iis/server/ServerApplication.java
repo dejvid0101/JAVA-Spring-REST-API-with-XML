@@ -60,6 +60,9 @@ public class ServerApplication {
 
 	@PostMapping("/api/getCities")
 	@ResponseBody
+	//takes temp as parameter, saves weather data for 10 cities to xml file, validates using jaxb against xsd
+	//uses xPath to query cities with temp higher than received parameter
+	//returns matching cities if validation passed, else returns empty object
 	public ResponseEntity<Weather_Collection> getCitiesbyParams(@RequestParam(name = "temp") String temp) throws JAXBException, IOException, ParserConfigurationException, SAXException, XPathExpressionException {
 
 		//current weather data api links for each city
@@ -105,6 +108,7 @@ public class ServerApplication {
 	}
 
 	@PostMapping("/api/getXML")
+	//saves Zagreb weather data to xml file, validates against XSD without JAXB and against RNG, if passed returns object, else returns empty object
 	public ResponseEntity<Current_Weather> getCurrentZagreb() throws JAXBException, FileNotFoundException, SAXException {
 
 		//fetch and save to object

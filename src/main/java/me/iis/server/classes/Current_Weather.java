@@ -1,6 +1,5 @@
 package me.iis.server.classes;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.xml.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -20,6 +19,9 @@ public class Current_Weather {
     public int weathercode;
     @XmlElement
     public String time;
+
+    @XmlTransient
+    public boolean is_day;
 
     @Override
     public String toString() {
