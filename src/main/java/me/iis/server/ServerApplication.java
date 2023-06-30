@@ -2,6 +2,12 @@ package me.iis.server;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Encoders;
+import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -9,6 +15,7 @@ import me.iis.server.classes.Current_Weather;
 import me.iis.server.classes.MyXMLValidator;
 import me.iis.server.classes.Weather_Class;
 import me.iis.server.classes.Weather_Collection;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -21,16 +28,15 @@ import org.springframework.web.client.RestTemplate;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import javax.crypto.SecretKey;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.*;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
@@ -50,6 +56,9 @@ public class ServerApplication {
 	private final String RNGfile="src/main/java/me/iis/server/files/RNG_validation_file.rng";
 	private final String XSDfilepath="src/main/java/me/iis/server/files/XSD_validation_file.xsd";
 	private final String XSDCollectionFile="src/main/java/me/iis/server/files/XSD_validation_matching_cities.xsd";
+
+	@Autowired
+	private HttpServletRequest request;
 	public ServerApplication(RestTemplateBuilder restTemplateBuilder) {
 		this.restTemplate = restTemplateBuilder.build();
 	}
@@ -58,12 +67,45 @@ public class ServerApplication {
 		SpringApplication.run(ServerApplication.class, args);
 	}
 
+	//takes string from which it generates jwt username
+	//returns jwt key
+	@PostMapping("/api/generateToken")
+	public static String generateToken(@RequestParam(name = "user") String subject) {
+		long currentTimeMillis = System.currentTimeMillis();
+		long expirationTimeMillis = currentTimeMillis + (10 * 60 * 1000); // Token expiration time: 10 minutes
+
+		//returns jwt key
+		return Jwts.builder()
+				//set username
+				.setSubject(subject)
+				.setIssuedAt(new Date(currentTimeMillis))
+				.setExpiration(new Date(expirationTimeMillis))
+				//set key (must be 265B)
+				.signWith(SignatureAlgorithm.HS256, "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+				.compact();
+	}
+
 	@PostMapping("/api/getCities")
 	@ResponseBody
+	//checks if the Authorization header jwt key matches signin key set to claims
 	//takes temp as parameter, saves weather data for 10 cities to xml file, validates using jaxb against xsd
 	//uses xPath to query cities with temp higher than received parameter
 	//returns matching cities if validation passed, else returns empty object
-	public ResponseEntity<Weather_Collection> getCitiesbyParams(@RequestParam(name = "temp") String temp) throws JAXBException, IOException, ParserConfigurationException, SAXException, XPathExpressionException {
+	public ResponseEntity<Weather_Collection> getCitiesbyParams(@RequestParam(name = "temp") String temp, @RequestHeader("Authorization") String authorizationHeader) throws JAXBException, IOException, ParserConfigurationException, SAXException, XPathExpressionException {
+
+		// Extract the token from the Authorization header
+		String token = authorizationHeader.replace("Bearer ", "");
+
+		// checks if the Authorization header jwt key matches signin key(throws xception)
+		Claims claims = Jwts.parser()
+			.setSigningKey("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+			.parseClaimsJws(token)
+				.getBody();
+
+		//System. out. println(claims);
+		// Perform further authentication and authorization logic here
+
+		// Return the response
 
 		//current weather data api links for each city
 		String ZagrebUrl="https://api.open-meteo.com/v1/forecast?latitude=45.8&longitude=15.9&current_weather=true";
@@ -110,6 +152,13 @@ public class ServerApplication {
 	@PostMapping("/api/getXML")
 	//saves Zagreb weather data to xml file, validates against XSD without JAXB and against RNG, if passed returns object, else returns empty object
 	public ResponseEntity<Current_Weather> getCurrentZagreb() throws JAXBException, FileNotFoundException, SAXException {
+
+		Enumeration<String> headerNames = request.getHeaderNames();
+		while (headerNames.hasMoreElements()) {
+			String headerName = headerNames.nextElement();
+			String headerValue = request.getHeader(headerName);
+			System.out.println(headerName + ": " + headerValue);
+		}
 
 		//fetch and save to object
 		Current_Weather currentWeather=JSONtoObject();
