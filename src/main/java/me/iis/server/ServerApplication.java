@@ -3,6 +3,7 @@ package me.iis.server;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Encoders;
@@ -67,27 +68,27 @@ public class ServerApplication {
 		SpringApplication.run(ServerApplication.class, args);
 	}
 
-	//takes string from which it generates jwt username
-	//returns jwt key
+	//takes username and key from which it generates jwt
+	//returns jwt
 	@PostMapping("/api/generateToken")
-	public static String generateToken(@RequestParam(name = "user") String subject) {
+	public static String generateToken(@RequestParam(name = "user") String username, @RequestParam(name = "key") String key) {
 		long currentTimeMillis = System.currentTimeMillis();
 		long expirationTimeMillis = currentTimeMillis + (10 * 60 * 1000); // Token expiration time: 10 minutes
 
 		//returns jwt key
 		return Jwts.builder()
 				//set username
-				.setSubject(subject)
+				.setSubject(username)
 				.setIssuedAt(new Date(currentTimeMillis))
 				.setExpiration(new Date(expirationTimeMillis))
 				//set key (must be 265B)
-				.signWith(SignatureAlgorithm.HS256, "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+				.signWith(SignatureAlgorithm.HS256, key)
 				.compact();
 	}
 
-	@PostMapping("/api/getCities")
+	@PostMapping("/api/getCitiesRestricted")
 	@ResponseBody
-	//checks if the Authorization header jwt key matches signin key set to claims
+	//checks if the "Authorization" header jwt key matches signin key set to claims
 	//takes temp as parameter, saves weather data for 10 cities to xml file, validates using jaxb against xsd
 	//uses xPath to query cities with temp higher than received parameter
 	//returns matching cities if validation passed, else returns empty object
@@ -96,16 +97,16 @@ public class ServerApplication {
 		// Extract the token from the Authorization header
 		String token = authorizationHeader.replace("Bearer ", "");
 
-		// checks if the Authorization header jwt key matches signin key(throws xception)
-		Claims claims = Jwts.parser()
-			.setSigningKey("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
-			.parseClaimsJws(token)
-				.getBody();
-
-		//System. out. println(claims);
-		// Perform further authentication and authorization logic here
-
-		// Return the response
+		// if token is not recognized, return empty weather object as response
+		try {
+			// checks if the Authorization header jwt key matches signin key(throws xception)
+			Claims claims = Jwts.parser()
+					.setSigningKey("12345678900000000000000000000000000000000000000000000000000")
+					.parseClaimsJws(token)
+					.getBody();
+		} catch(JwtException e){
+			return new ResponseEntity<>(new Weather_Collection(new ArrayList<Current_Weather>()), new HttpHeaders(), HttpStatus.UNAUTHORIZED);
+		}
 
 		//current weather data api links for each city
 		String ZagrebUrl="https://api.open-meteo.com/v1/forecast?latitude=45.8&longitude=15.9&current_weather=true";
@@ -142,7 +143,7 @@ public class ServerApplication {
 		} catch (Exception e){
 			e.printStackTrace();
 			//if validator returns error, return empty XML object
-			return new ResponseEntity<>(new Weather_Collection(new ArrayList<Current_Weather>()), new HttpHeaders(), HttpStatus.CREATED);
+			return new ResponseEntity<>(new Weather_Collection(new ArrayList<Current_Weather>()), new HttpHeaders(), HttpStatus.CONFLICT);
 		}
 
 		//minTempQuery returns Weather_Collection with cities that match temperature query
@@ -185,11 +186,11 @@ public class ServerApplication {
 			System.out.println(e.getMessage());
 
 			//if any exception is thrown during validation, xml is not valid and empty xml object is sent as response
-			return new ResponseEntity<>(new Current_Weather(), new HttpHeaders(), HttpStatus.CREATED);
+			return new ResponseEntity<>(new Current_Weather(), new HttpHeaders(), HttpStatus.CONFLICT);
 		} catch (Exception e) {
 			//if any exception is thrown during validation, xml is not valid and empty xml object is sent as response
 			System.out.println(e.getMessage());
-			return new ResponseEntity<>(new Current_Weather(), new HttpHeaders(), HttpStatus.CREATED);
+			return new ResponseEntity<>(new Current_Weather(), new HttpHeaders(), HttpStatus.CONFLICT);
 		}
 
 	}
