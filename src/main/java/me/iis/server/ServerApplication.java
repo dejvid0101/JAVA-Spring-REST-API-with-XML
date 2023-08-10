@@ -16,6 +16,7 @@ import me.iis.server.classes.Current_Weather;
 import me.iis.server.classes.MyXMLValidator;
 import me.iis.server.classes.Weather_Class;
 import me.iis.server.classes.Weather_Collection;
+import org.springframework.amqp.core.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,6 +24,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -44,6 +46,14 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import static org.springframework.util.ResourceUtils.getFile;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 @SpringBootApplication
 @RestController
@@ -73,7 +83,7 @@ public class ServerApplication {
 	@PostMapping("/api/generateToken")
 	public static String generateToken(@RequestParam(name = "user") String username, @RequestParam(name = "key") String key) {
 		long currentTimeMillis = System.currentTimeMillis();
-		long expirationTimeMillis = currentTimeMillis + (10 * 60 * 1000); // Token expiration time: 10 minutes
+		long expirationTimeMillis = currentTimeMillis + (10 * 60 * 1000); // Token expiration time in ms
 
 		//returns jwt key
 		return Jwts.builder()
@@ -105,6 +115,7 @@ public class ServerApplication {
 					.parseClaimsJws(token)
 					.getBody();
 		} catch(JwtException e){
+			//if auth failed, return Unauthorized
 			return new ResponseEntity<>(new Weather_Collection(new ArrayList<Current_Weather>()), new HttpHeaders(), HttpStatus.UNAUTHORIZED);
 		}
 
@@ -142,7 +153,7 @@ public class ServerApplication {
 			MyValidator.JAXBvalidateXSD(XSDCollectionFile, XMLfile);
 		} catch (Exception e){
 			e.printStackTrace();
-			//if validator returns error, return empty XML object
+			//if validator returns error, return empty XML object and set status to CONFLICT
 			return new ResponseEntity<>(new Weather_Collection(new ArrayList<Current_Weather>()), new HttpHeaders(), HttpStatus.CONFLICT);
 		}
 
@@ -226,8 +237,7 @@ public class ServerApplication {
 
 		return res.current_weather;
 	}
-
-	//returns Weather_Collection object with cities that match minTemp requirement
+//queries xml file using xPath and returns Weather_Collection object with cities that match minTemp requirement
 	private Weather_Collection minTempQuery(String minTemp) throws ParserConfigurationException, SAXException, IOException, XPathExpressionException {
 		FileInputStream fileIS = new FileInputStream(XMLfile);
 		DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
@@ -278,6 +288,11 @@ public class ServerApplication {
 		//append list to Weather_Collection as XML wrapper
 		return new Weather_Collection(matchingWeatherObjects);
 
+	}
+
+	@RabbitListener(queues = "rpc_queue")
+	public void processMessage(@Payload String message) {
+		System.out.println("Received message: " + message);
 	}
 
 }
